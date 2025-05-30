@@ -1,7 +1,3 @@
-# ---
-# lambda-test: false
-# ---
-
 # ## Benchmarking Audio-to-Text Models - Parakeet, Whisper and WhisperX
 
 # This example demonstrates how to benchmark multiple audio-to-text models at
@@ -33,7 +29,7 @@ from download_and_upload_lj_data import (
 from parse_token_counts import upload_token_counts
 from postprocess_results import postprocess_results
 from prepare_and_upload_data import process_wav_files
-from utils import print_error, print_header, write_results
+from src.utils import print_error, print_header, write_results
 
 MODEL_CONFIGS = [
     ("Parakeet", PARAKEET_MODEL_NAME.replace("/", "-"), Parakeet()),

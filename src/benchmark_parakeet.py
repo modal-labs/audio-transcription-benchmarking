@@ -4,13 +4,20 @@
 
 import modal
 from common import app, dataset_volume, model_cache
-from utils import write_results
+from src.utils import write_results
 
 parakeet_image = (
     modal.Image.from_registry(
         "nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04", add_python="3.12"
     )
-    .pip_install("uv")
+    .pip_install(
+        "librosa==0.11.0",
+        "hf_transfer==0.1.9",
+        "huggingface_hub[hf-xet]==1.1.2",
+        "nemo_toolkit[asr]",
+        "cuda-python>=12.3",
+        "numpy<2.0",
+    )
     .env(
         {
             "HF_HUB_ENABLE_HF_TRANSFER": "1",
@@ -21,10 +28,6 @@ parakeet_image = (
         }
     )
     .apt_install("ffmpeg")
-    .run_commands(
-        "uv pip install --system librosa==0.11.0 hf_transfer huggingface_hub[hf-xet] nemo_toolkit[asr] cuda-python>=12.3",
-        "uv pip install --system 'numpy<2.0'",  # downgrade numpy; incompatible current version
-    )
     .entrypoint([])
     .add_local_python_source("common", "utils")
 )

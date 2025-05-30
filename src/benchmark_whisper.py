@@ -4,7 +4,7 @@
 
 import modal
 from common import app, dataset_volume, model_cache
-from utils import write_results
+from src.utils import write_results
 
 MODEL_NAME = "openai/whisper-large-v3-turbo"
 
