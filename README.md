@@ -11,7 +11,7 @@ models:
 If you're familiar with all the functions here, feel free to kick them all off with:
 
 ```shell
-modal run main.py
+modal run src/app.py
 ```
 
 ## Data preparation / Pre-requisites
@@ -31,7 +31,7 @@ Run the following script to upload all data to a new [Modal Volume](https://moda
 and convert all WAV files to equivalent files but in 16khz and mono. This makes files compatible with Parakeet. The data in this volume can be accessed by all apps.
 
 ```shell
-modal run download_and_upload_lj_data.py
+modal run src/download_and_upload_lj_data.py
 ```
 
 # Inference
@@ -39,7 +39,7 @@ modal run download_and_upload_lj_data.py
 You can benchmark just one model by `modal run`ning either of the files prefixed by `benchmark_`, such as
 
 ```
-modal run benchmark_parakeet.py
+modal run src/benchmark_parakeet.py
 ```
 
 Modal will scale to add as many GPUs as necessary in order to process your
