@@ -9,19 +9,12 @@ from pathlib import Path
 from common import COLOR
 
 
-def write_results(results: list[tuple[str, str, float, float]], model_name: str):
+def write_results(results: dict, model_name: str):
     timestamp = int(time.time())
     result_path = Path(f"result_{model_name}_{timestamp}.jsonl")
     with result_path.open("w") as f:
-        for filename, transcription, transcription_time, duration in results:
-            row = {
-                "model": model_name,
-                "filename": filename,
-                "transcription": transcription,
-                "transcription_time": transcription_time,
-                "audio_duration": duration,
-            }
-            f.write(json.dumps(row) + "\n")
+        for result in results:
+            f.write(json.dumps(result) + "\n")
     return result_path
 
 

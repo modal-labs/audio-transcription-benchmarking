@@ -4,7 +4,7 @@
 
 import modal
 from common import app, dataset_volume, model_cache
-from src.utils import write_results
+from utils import write_results
 
 MODEL_NAME = "openai/whisper-large-v3-turbo"
 
@@ -19,7 +19,9 @@ whisper_image = (
             "HF_HOME": "/cache",
         }
     )
-    .run_commands("uv pip install --system librosa hf_transfer vllm[audio]")
+    .run_commands(
+        "uv pip install --system evaluate==0.4.3 jiwer==3.1.0 librosa==0.11.0 hf_transfer vllm[audio]"
+    )
     .entrypoint([])
     .add_local_python_source("common", "utils")
 )
@@ -41,26 +43,30 @@ with whisper_image.imports():
 class Whisper:
     @modal.enter()
     def load(self):
+        import json
+
         self.llm = LLM(
             model=MODEL_NAME,
             max_model_len=448,
             limit_mm_per_prompt={"audio": 1},
             gpu_memory_utilization=0.95,
         )
+        self.gpu = "a10g"
+        with open("/data/metadata.json", "r") as f:
+            self.metadata = json.load(f)
 
     @modal.method()
     def run(self, file: str):
         import time
         from pathlib import Path
+        import evaluate
 
-        # Convert string back to Path for local usage
         file_path = Path(file)
+        filename = file_path.name
 
-        # Get audio duration
         y, sr = librosa.load(file_path, sr=None)
         duration = len(y) / float(sr)
 
-        # Time the transcription
         start_time = time.time()
 
         prompts = [
@@ -81,11 +87,30 @@ class Whisper:
         outputs = self.llm.generate(prompts, sampling_params)
         transcription_time = time.time() - start_time
 
-        for output in outputs:
-            transcription = output.outputs[0].text
-            return file, transcription, transcription_time, duration
+        if len(outputs) == 0:
+            transcription = ""
+            wer = None
+        else:
+            for output in outputs:
+                transcription = output.outputs[0].text
+                break
 
-        return file, "", transcription_time, duration
+            expected = self.metadata[filename]["transcription"]
+            print("Transcription", transcription)
+            print("Expected", expected)
+            wer_model = evaluate.load("wer")
+            wer = wer_model.compute(predictions=[transcription], references=[expected])
+
+        return {
+            "model": MODEL_NAME.replace("/", "-"),
+            "filename": filename,
+            "expected_transcription": expected,
+            "transcription": transcription,
+            "transcription_time": transcription_time,
+            "audio_duration": duration,
+            "wer": wer,
+            "gpu": self.gpu,
+        }
 
 
 @app.local_entrypoint()
@@ -96,7 +121,7 @@ def benchmark_whisper():
     # Convert paths to strings for serialization
     files = [
         str(Path("/data") / Path(f.path)) for f in dataset_volume.listdir("/processed")
-    ]
+    ][:1]
 
     results = list(whisper_instance.run.map(files))
     results_path = write_results(results, MODEL_NAME.replace("/", "-"))

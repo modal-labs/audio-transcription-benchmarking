@@ -7,7 +7,7 @@ from pathlib import Path
 
 import modal
 from common import app, dataset_volume, model_cache
-from src.utils import write_results
+from utils import write_results
 
 MODEL_NAME = "large-v2"
 
@@ -23,7 +23,7 @@ whisperx_image = (
         }
     )
     .run_commands(
-        "uv pip install --system librosa hf_transfer faster-whisper whisperx torchaudio"
+        "uv pip install --system evaluate==0.4.3 jiwer==3.1.0 librosa==0.11.0 hf_transfer faster-whisper whisperx torchaudio"
     )
     .apt_install("ffmpeg")
     .entrypoint([])
@@ -48,26 +48,45 @@ with whisperx_image.imports():
 class WhisperX:
     @modal.enter()
     def load(self):
+        import json
+
         device = "cuda"
         self.model = whisperx.load_model(MODEL_NAME, device, compute_type="float16")
+        self.gpu = "a10g"
+        with open("/data/metadata.json", "r") as f:
+            self.metadata = json.load(f)
 
     @modal.method()
     def run(self, file: str) -> tuple[str, str, float, float]:
-        # Convert string back to Path for local usage
-        file_path = Path(file)
+        import evaluate
 
-        # Get audio duration
+        file_path = Path(file)
+        filename = file_path.name
+
         y, sr = librosa.load(file_path, sr=None)
         duration = len(y) / float(sr)
 
-        # Time the transcription
         start_time = time.time()
         audio = whisperx.load_audio(file_path, sr=16000)
         result = self.model.transcribe(audio, batch_size=16)
         transcription_time = time.time() - start_time
 
         transcription = " ".join([s["text"] for s in result["segments"]])
-        return file_path.name, transcription, transcription_time, duration
+
+        wer_model = evaluate.load("wer")
+        expected = self.metadata[filename]["transcription"]
+        wer = wer_model.compute(predictions=[transcription], references=[expected])
+
+        return {
+            "model": f"whisperx-{MODEL_NAME}",
+            "filename": filename,
+            "expected_transcription": expected,
+            "transcription": transcription,
+            "transcription_time": transcription_time,
+            "audio_duration": duration,
+            "wer": wer,
+            "gpu": self.gpu,
+        }
 
 
 @app.local_entrypoint()
@@ -76,7 +95,7 @@ def benchmark_whisperx():
     # Convert paths to strings for serialization
     files = [
         str(Path("/data") / Path(f.path)) for f in dataset_volume.listdir("/processed")
-    ]
+    ][:1]
 
     results = list(whisperx.run.map(files))
     results_path = write_results(results, f"whisperx-{MODEL_NAME}")

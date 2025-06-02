@@ -26,10 +26,10 @@ from download_and_upload_lj_data import (
     download_and_upload_lj_data,
     upload_lj_data_subset,
 )
-from parse_token_counts import upload_token_counts
+from src.parse_metadata import upload_token_counts
 from postprocess_results import postprocess_results
 from prepare_and_upload_data import process_wav_files
-from src.utils import print_error, print_header, write_results
+from utils import print_error, print_header, write_results
 
 MODEL_CONFIGS = [
     ("Parakeet", PARAKEET_MODEL_NAME.replace("/", "-"), Parakeet()),
