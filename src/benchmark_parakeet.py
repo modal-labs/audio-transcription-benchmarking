@@ -1,6 +1,6 @@
 import modal
-from common import app, dataset_volume, model_cache
-from utils import write_results
+from src.common import app, dataset_volume, model_cache
+from src.utils import write_results
 
 parakeet_cpu_image = (
     modal.Image.debian_slim(python_version="3.12")
@@ -20,7 +20,7 @@ parakeet_cpu_image = (
         "uv pip install --system 'numpy<2.0'",  # downgrade numpy; incompatible current version
     )
     .entrypoint([])
-    .add_local_python_source("common", "utils")
+    .add_local_python_source("src.common", "src.utils")
 )
 
 parakeet_image = (
@@ -43,7 +43,7 @@ parakeet_image = (
         "uv pip install --system 'numpy<2.0'",  # downgrade numpy; incompatible current version
     )
     .entrypoint([])
-    .add_local_python_source("common", "utils")
+    .add_local_python_source("src.common", "src.utils")
 )
 
 with parakeet_cpu_image.imports():

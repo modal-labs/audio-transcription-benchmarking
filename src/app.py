@@ -12,24 +12,24 @@
 
 import asyncio
 
-from benchmark_parakeet import ParakeetCPU, ParakeetA10G, ParakeetH100, ParakeetT4
-from benchmark_whisper import WhisperA10G, WhisperH100, WhisperT4
-from benchmark_whisperx import WhisperXA10G, WhisperXH100, WhisperXT4
-from common import (
+from src.benchmark_parakeet import ParakeetCPU, ParakeetA10G, ParakeetH100, ParakeetT4
+from src.benchmark_whisper import WhisperA10G, WhisperH100, WhisperT4
+from src.benchmark_whisperx import WhisperXA10G, WhisperXH100, WhisperXT4
+from src.common import (
     PARAKEET_MODEL_NAME,
     WHISPER_MODEL_NAME,
     WHISPERX_MODEL_NAME,
     app,
     dataset_volume,
 )
-from download_lj_data import (
+from src.download_lj_data import (
     download_and_upload_lj_data,
     upload_lj_data_subset,
 )
-from parse_metadata import upload_token_counts
-from postprocess_results import postprocess_results
-from preprocess import preprocess_wav_files
-from utils import print_error, print_header, write_results
+from src.parse_metadata import upload_token_counts
+from src.postprocess_results import postprocess_results
+from src.preprocess import preprocess_wav_files
+from src.utils import print_error, print_header, write_results
 
 parakeet_display_name = PARAKEET_MODEL_NAME.replace("/", "-")
 whisper_display_name = WHISPER_MODEL_NAME.replace("/", "-")
@@ -55,7 +55,7 @@ MODEL_CONFIGS = [
 #
 # To skip download (on subsequent runs), set `REDOWNLOAD_DATA` to False.
 # To use the full dataset, set `USE_DATASET_SUBSET` to False.
-REDOWNLOAD_DATA = True
+REDOWNLOAD_DATA = False
 USE_DATASET_SUBSET = True
 
 

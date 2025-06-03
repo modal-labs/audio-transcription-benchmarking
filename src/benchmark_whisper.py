@@ -1,6 +1,6 @@
 import modal
-from common import app, dataset_volume, model_cache
-from utils import write_results
+from src.common import app, dataset_volume, model_cache
+from src.utils import write_results
 
 MODEL_NAME = "openai/whisper-large-v3-turbo"
 
@@ -17,7 +17,7 @@ whisper_cpu_image = (
         "uv pip install --system evaluate==0.4.3 jiwer==3.1.0 librosa==0.11.0 hf_transfer vllm[audio]"
     )
     .entrypoint([])
-    .add_local_python_source("common", "utils")
+    .add_local_python_source("src.common", "src.utils")
 )
 
 
@@ -41,7 +41,7 @@ whisper_image = (
         "uv pip install --system evaluate==0.4.3 jiwer==3.1.0 librosa==0.11.0 hf_transfer vllm[audio]"
     )
     .entrypoint([])
-    .add_local_python_source("common", "utils")
+    .add_local_python_source("src.common", "src.utils")
 )
 
 

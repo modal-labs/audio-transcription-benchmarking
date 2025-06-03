@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import modal
-from common import DATASET_VOLUME_NAME, app, dataset_volume
+from src.common import DATASET_VOLUME_NAME, app, dataset_volume
 
 # Full dataset
 DATA_URL = "https://data.keithito.com/data/speech/LJSpeech-1.1.tar.bz2"
@@ -10,7 +10,9 @@ DATA_URL = "https://data.keithito.com/data/speech/LJSpeech-1.1.tar.bz2"
 LOCAL_ZIP_PATH = Path(__file__).parent / "LJSpeech-1.1-subset.zip"
 
 image = (
-    modal.Image.debian_slim().pip_install("requests").add_local_python_source("common")
+    modal.Image.debian_slim()
+    .pip_install("requests")
+    .add_local_python_source("src.common", "src.utils")
 )
 
 

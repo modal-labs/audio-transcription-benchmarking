@@ -2,7 +2,7 @@ import json
 import time
 from pathlib import Path
 
-from common import COLOR
+from src.common import COLOR
 
 
 def write_results(results: dict, model_name: str):

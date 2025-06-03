@@ -3,10 +3,12 @@ import json
 from pathlib import Path
 
 import modal
-from common import app, dataset_volume
+from src.common import app, dataset_volume
 
 image = (
-    modal.Image.debian_slim().pip_install("pandas").add_local_python_source("common")
+    modal.Image.debian_slim()
+    .pip_install("pandas")
+    .add_local_python_source("src.common", "src.utils")
 )
 
 

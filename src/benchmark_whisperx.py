@@ -2,8 +2,8 @@ import time
 from pathlib import Path
 
 import modal
-from common import app, dataset_volume, model_cache
-from utils import write_results
+from src.common import app, dataset_volume, model_cache
+from src.utils import write_results
 
 MODEL_NAME = "large-v2"
 
@@ -22,7 +22,7 @@ whisperx_cpu_image = (
     )
     .apt_install("ffmpeg")
     .entrypoint([])
-    .add_local_python_source("common", "utils")
+    .add_local_python_source("src.common", "src.utils")
 )
 
 with whisperx_cpu_image.imports():
@@ -46,7 +46,7 @@ whisperx_image = (
     )
     .apt_install("ffmpeg")
     .entrypoint([])
-    .add_local_python_source("common", "utils")
+    .add_local_python_source("src.common", "src.utils")
 )
 
 

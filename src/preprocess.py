@@ -1,10 +1,10 @@
 import modal
-from common import DATASET_VOLUME_NAME, app, dataset_volume
+from src.common import DATASET_VOLUME_NAME, app, dataset_volume
 
 data_prep_image = (
     modal.Image.debian_slim()
     .pip_install("numpy==2.2.6")
-    .add_local_python_source("common")
+    .add_local_python_source("src.common", "src.utils")
 )
 
 

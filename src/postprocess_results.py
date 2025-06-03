@@ -1,10 +1,10 @@
 import modal
-from common import DATASET_VOLUME_NAME, app, dataset_volume
+from src.common import DATASET_VOLUME_NAME, app, dataset_volume
 
 image = (
     modal.Image.debian_slim()
     .pip_install("pandas==2.2.3", "matplotlib==3.10.3")
-    .add_local_python_source("common")
+    .add_local_python_source("src.common", "src.utils")
 )
 
 pricing_per_second = {
