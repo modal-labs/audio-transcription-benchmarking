@@ -1,4 +1,4 @@
-# Audio Diarization Benchmarking
+# Audio Transcription Benchmarking
 
 This folder contains code that compares different ASR models using
 Modal. Models are compared against a sample dataset of WAV files. Available
