@@ -80,7 +80,7 @@ def convert_to_mono_16khz(input_path: str, output_dir: str):
     volumes={"/data": dataset_volume},
     image=data_prep_image,
 )
-def process_wav_files():
+def preprocess_wav_files():
     import itertools
 
     print("Processing files to 16kHz mono...")

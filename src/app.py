@@ -22,13 +22,13 @@ from common import (
     app,
     dataset_volume,
 )
-from download_and_upload_lj_data import (
+from download_lj_data import (
     download_and_upload_lj_data,
     upload_lj_data_subset,
 )
-from src.parse_metadata import upload_token_counts
+from parse_metadata import upload_token_counts
 from postprocess_results import postprocess_results
-from prepare_and_upload_data import process_wav_files
+from preprocess import preprocess_wav_files
 from utils import print_error, print_header, write_results
 
 MODEL_CONFIGS = [
@@ -84,7 +84,7 @@ async def main():
             )
 
     print_header("🔄 Processing wav files into appropriate format...")
-    process_wav_files.remote()
+    preprocess_wav_files.remote()
 
     # TODO: This should be in the process data step, will add in next PR
     print_header("✨ Parsing metadata to retrieve token counts...")
