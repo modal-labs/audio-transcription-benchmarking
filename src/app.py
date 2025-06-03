@@ -12,9 +12,9 @@
 
 import asyncio
 
-from benchmark_parakeet import Parakeet
-from benchmark_whisper import Whisper
-from benchmark_whisperx import WhisperX
+from benchmark_parakeet import ParakeetCPU, ParakeetA10G, ParakeetH100, ParakeetT4
+from benchmark_whisper import WhisperA10G, WhisperH100, WhisperT4
+from benchmark_whisperx import WhisperXA10G, WhisperXH100, WhisperXT4
 from common import (
     PARAKEET_MODEL_NAME,
     WHISPER_MODEL_NAME,
@@ -31,10 +31,21 @@ from postprocess_results import postprocess_results
 from preprocess import preprocess_wav_files
 from utils import print_error, print_header, write_results
 
+parakeet_display_name = PARAKEET_MODEL_NAME.replace("/", "-")
+whisper_display_name = WHISPER_MODEL_NAME.replace("/", "-")
+whisperx_display_name = f"whisperx-{WHISPERX_MODEL_NAME}"
+
 MODEL_CONFIGS = [
-    ("Parakeet", PARAKEET_MODEL_NAME.replace("/", "-"), Parakeet()),
-    ("Whisper", WHISPER_MODEL_NAME.replace("/", "-"), Whisper()),
-    ("WhisperX", f"whisperx-{WHISPERX_MODEL_NAME}", WhisperX()),
+    ("ParakeetCPU", parakeet_display_name, ParakeetCPU()),
+    ("ParakeetA10G", parakeet_display_name, ParakeetA10G()),
+    ("ParakeetH100", parakeet_display_name, ParakeetH100()),
+    ("ParakeetT4", parakeet_display_name, ParakeetT4()),
+    ("WhisperA10G", whisper_display_name, WhisperA10G()),
+    ("WhisperH100", whisper_display_name, WhisperH100()),
+    ("WhisperT4", whisper_display_name, WhisperT4()),
+    ("WhisperXA10G", whisperx_display_name, WhisperXA10G()),
+    ("WhisperXH100", whisperx_display_name, WhisperXH100()),
+    ("WhisperXT4", whisperx_display_name, WhisperXT4()),
 ]
 
 # ## Download and upload data

@@ -1,7 +1,3 @@
-# ---
-# lambda-test: false  # missing-secret
-# ---
-
 import modal
 
 # Model names + configs

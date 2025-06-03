@@ -1,7 +1,3 @@
-# ---
-# lambda-test: false
-# ---
-
 from pathlib import Path
 
 import modal
