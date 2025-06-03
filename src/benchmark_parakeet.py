@@ -339,21 +339,18 @@ class ParakeetT4:
 def benchmark_parakeet():
     from pathlib import Path
 
+    files = [
+        str(Path("/data") / Path(f.path)) for f in dataset_volume.listdir("/processed")
+    ]
     GPU_CONFIG = {
         "cpu": ParakeetCPU,
-        # "a10g": ParakeetA10G,
-        # "h100": ParakeetH100,
-        # "t4": ParakeetT4,
+        "a10g": ParakeetA10G,
+        "h100": ParakeetH100,
+        "t4": ParakeetT4,
     }
 
     for _, model_class in GPU_CONFIG.items():
         parakeet = model_class()
-
-        # Convert paths to strings for serialization
-        files = [
-            str(Path("/data") / Path(f.path))
-            for f in dataset_volume.listdir("/processed")
-        ]
 
         results = list(parakeet.run.map(files))
 

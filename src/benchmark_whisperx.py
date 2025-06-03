@@ -1,7 +1,3 @@
-# ---
-# lambda-test: false  # missing-secret
-# ---
-
 import time
 from pathlib import Path
 
@@ -330,12 +326,11 @@ class WhisperXT4:
 def benchmark_whisperx():
     files = [
         str(Path("/data") / Path(f.path)) for f in dataset_volume.listdir("/processed")
-    ][:1]
+    ]
     GPU_CONFIG = {
-        "cpu": WhisperXCPU,
-        # "a10g": WhisperXA10G,
-        # "h100": WhisperXH100,
-        # "t4": WhisperXT4,
+        "a10g": WhisperXA10G,
+        "h100": WhisperXH100,
+        "t4": WhisperXT4,
     }
 
     for _, model_class in GPU_CONFIG.items():

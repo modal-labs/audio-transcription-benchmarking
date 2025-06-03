@@ -86,7 +86,6 @@ async def main():
     print_header("🔄 Processing wav files into appropriate format...")
     preprocess_wav_files.remote()
 
-    # TODO: This should be in the process data step, will add in next PR
     print_header("✨ Parsing metadata to retrieve token counts...")
     upload_token_counts.remote()
 

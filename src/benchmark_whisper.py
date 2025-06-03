@@ -1,7 +1,3 @@
-# ---
-# lambda-test: false
-# ---
-
 import modal
 from common import app, dataset_volume, model_cache
 from utils import write_results
@@ -427,13 +423,12 @@ def benchmark_whisper():
 
     files = [
         str(Path("/data") / Path(f.path)) for f in dataset_volume.listdir("/processed")
-    ][:1]
+    ]
 
     GPU_CONFIG = {
-        "cpu": WhisperCPU,
-        # "a10g": WhisperA10G,
-        # "h100": WhisperH100,
-        # "t4": WhisperT4,
+        "a10g": WhisperA10G,
+        "h100": WhisperH100,
+        "t4": WhisperT4,
     }
 
     for _, model_class in GPU_CONFIG.items():
