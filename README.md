@@ -14,7 +14,7 @@ If you're familiar with all the functions here, feel free to kick them all off w
 modal run src/app.py
 ```
 
-## Data preparation / Pre-requisites
+# Data preparation / Pre-requisites
 
 ## Create secret
 
