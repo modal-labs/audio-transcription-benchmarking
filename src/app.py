@@ -11,16 +11,18 @@
 # We'll start by importing the necessary modules and defining the model configurations.
 
 import asyncio
+from itertools import product
 
-from src.benchmark_parakeet import ParakeetCPU, ParakeetA10G, ParakeetH100, ParakeetT4
-from src.benchmark_whisper import WhisperA10G, WhisperH100, WhisperT4
-from src.benchmark_whisperx import WhisperXA10G, WhisperXH100, WhisperXT4
+from src.benchmark_parakeet import ParakeetCPU, Parakeet
+from src.benchmark_whisper import Whisper
+from src.benchmark_whisperx import WhisperX
 from src.common import (
     PARAKEET_MODEL_NAME,
     WHISPER_MODEL_NAME,
     WHISPERX_MODEL_NAME,
     app,
     dataset_volume,
+    GPUS,
 )
 from src.download_lj_data import (
     download_and_upload_lj_data,
@@ -31,21 +33,10 @@ from src.postprocess_results import postprocess_results
 from src.preprocess import preprocess_wav_files
 from src.utils import print_error, print_header, write_results
 
-parakeet_display_name = PARAKEET_MODEL_NAME.replace("/", "-")
-whisper_display_name = WHISPER_MODEL_NAME.replace("/", "-")
-whisperx_display_name = f"whisperx-{WHISPERX_MODEL_NAME}"
-
 MODEL_CONFIGS = [
-    ("ParakeetCPU", parakeet_display_name, ParakeetCPU()),
-    ("ParakeetA10G", parakeet_display_name, ParakeetA10G()),
-    ("ParakeetH100", parakeet_display_name, ParakeetH100()),
-    ("ParakeetT4", parakeet_display_name, ParakeetT4()),
-    ("WhisperA10G", whisper_display_name, WhisperA10G()),
-    ("WhisperH100", whisper_display_name, WhisperH100()),
-    ("WhisperT4", whisper_display_name, WhisperT4()),
-    ("WhisperXA10G", whisperx_display_name, WhisperXA10G()),
-    ("WhisperXH100", whisperx_display_name, WhisperXH100()),
-    ("WhisperXT4", whisperx_display_name, WhisperXT4()),
+    (PARAKEET_MODEL_NAME.replace("/", "-"), Parakeet),
+    (WHISPER_MODEL_NAME.replace("/", "-"), Whisper),
+    (f"whisperx-{WHISPERX_MODEL_NAME}", WhisperX),
 ]
 
 # ## Download and upload data
@@ -65,8 +56,8 @@ USE_DATASET_SUBSET = True
 # up multiple containers in parallel.
 
 
-def run_model_sync(model_name, instance, files):
-    results = list(instance.run.map(files))
+def run_model_sync(model_name, instance, gpu, files):
+    results = list(instance.with_options(gpu=gpu)().run.map(files))
     results_path = write_results(results, model_name)
     with dataset_volume.batch_upload() as batch:
         batch.put_file(results_path, f"/results/{results_path}")
@@ -85,17 +76,23 @@ async def main():
         else:
             print_header("🔄 Downloading and uploading LJSpeech data...")
             download_and_upload_lj_data.remote()
+
+        print_header("🔄 Processing wav files into appropriate format...")
+        preprocess_wav_files.remote()
     else:
         print("Skipping data download")
+
+        from grpclib import GRPCError
+        from grpclib.const import Status
+
         try:
             dataset_volume.listdir("/raw/wavs")
-        except Exception as _:
-            print_error(
-                "Data not found in volume. Please re-run app.py with REDOWNLOAD_DATA=True. Note that this will take several minutes.",
-            )
-
-    print_header("🔄 Processing wav files into appropriate format...")
-    preprocess_wav_files.remote()
+        except GRPCError as e:
+            if e.status == Status.NOT_FOUND:
+                print_error(
+                    "Data not found in volume. Please re-run app.py with REDOWNLOAD_DATA=True. Note that this will take several minutes.",
+                )
+                exit(1)
 
     print_header("✨ Parsing metadata to retrieve token counts...")
     upload_token_counts.remote()
@@ -104,13 +101,15 @@ async def main():
     files = [
         str(Path("/data") / Path(f.path)) for f in dataset_volume.listdir("/processed")
     ]
+
     print(f"Found {len(files)} files to benchmark")
 
+    model_parameters = [(*mc, gc) for mc, gc in product(MODEL_CONFIGS, GPUS)]
     tasks = [
         asyncio.get_event_loop().run_in_executor(
-            None, run_model_sync, model_name, instance, files
+            None, run_model_sync, model_name, instance, gpu, files
         )
-        for _, model_name, instance in MODEL_CONFIGS
+        for model_name, instance, gpu in model_parameters
     ]
     await asyncio.gather(*tasks)
 
