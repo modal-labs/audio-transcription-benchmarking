@@ -1,18 +1,21 @@
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 from src.common import COLOR
 
 
-def write_results(results: dict, model_name: str):
+def write_results(results: list[dict[str, Any]], model_name: str):
+    """Write JSONL dataset with all results."""
     timestamp = int(time.time())
     result_path = Path(f"result_{model_name}_{timestamp}.jsonl")
     with result_path.open("w") as f:
         for result in results:
-            if result["expected_transcription"] is None:
+            if result and not result.get("expected_transcription"):
                 continue
             f.write(json.dumps(result) + "\n")
+
     return result_path
 
 
