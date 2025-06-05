@@ -2,7 +2,14 @@ import time
 from pathlib import Path
 
 import modal
-from src.common import app, dataset_volume, model_cache, GPUS, BenchmarkResult, MODEL_CACHE_PATH
+from src.common import (
+    app,
+    dataset_volume,
+    model_cache,
+    GPUS,
+    BenchmarkResult,
+    MODEL_CACHE_PATH,
+)
 from src.utils import write_results
 
 MODEL_NAME = "large-v2"
@@ -20,7 +27,13 @@ whisperx_image = (
         }
     )
     .pip_install(
-        "evaluate==0.4.3", "jiwer==3.1.0", "librosa==0.11.0", "hf_transfer==0.1.9", "faster-whisper==1.1.1", "whisperx==3.3.4", "torchaudio==2.7.1",
+        "evaluate==0.4.3",
+        "jiwer==3.1.0",
+        "librosa==0.11.0",
+        "hf_transfer==0.1.9",
+        "faster-whisper==1.1.1",
+        "whisperx==3.3.4",
+        "torchaudio==2.7.1",
     )
     .apt_install("ffmpeg")
     .entrypoint([])
@@ -56,7 +69,6 @@ class WhisperX:
 
     @modal.method()
     def run(self, file: Path) -> BenchmarkResult:
-
         filename = file.name
         file_metadata = self.metadata.get(filename)
         if file_metadata is None:
