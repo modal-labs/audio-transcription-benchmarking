@@ -24,7 +24,7 @@ for image in [download_image, data_prep_image, metadata_image]:
     image=download_image,
     timeout=1200,  # 20 minutes
 )
-def download_and_upload_lj_data():
+def download_lj_data():
     import tarfile
     import tempfile
 

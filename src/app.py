@@ -13,7 +13,7 @@
 import asyncio
 from itertools import product
 
-from src.benchmark_parakeet import ParakeetCPU, Parakeet
+from src.benchmark_parakeet import ParakeetCPU, ParakeetGPU
 from src.benchmark_whisper import Whisper
 from src.benchmark_whisperx import WhisperX
 from src.common import (
@@ -24,17 +24,14 @@ from src.common import (
     dataset_volume,
     GPUS,
 )
-from src.download_lj_data import (
-    download_and_upload_lj_data,
-    upload_lj_data_subset,
+from src.stage_data import (
+    stage_data,
 )
-from src.parse_metadata import upload_token_counts
 from src.postprocess_results import postprocess_results
-from src.preprocess import preprocess_wav_files
 from src.utils import print_error, print_header, write_results
 
 MODEL_CONFIGS = [
-    (PARAKEET_MODEL_NAME.replace("/", "-"), Parakeet),
+    (PARAKEET_MODEL_NAME.replace("/", "-"), ParakeetGPU),
     (WHISPER_MODEL_NAME.replace("/", "-"), Whisper),
     (f"whisperx-{WHISPERX_MODEL_NAME}", WhisperX),
 ]
@@ -56,29 +53,30 @@ USE_DATASET_SUBSET = True
 # up multiple containers in parallel.
 
 
+@app.function(
+    volumes={
+        "/data": dataset_volume,
+    },
+)
 def run_model_sync(model_name, instance, gpu, files):
+    import json
+
     results = list(instance.with_options(gpu=gpu)().run.map(files))
     results_path = write_results(results, model_name)
-    with dataset_volume.batch_upload() as batch:
-        batch.put_file(results_path, f"/results/{results_path}")
+    with open(results_path, "w") as f:
+        f.write(json.dumps(results))
     print(f"✅ {model_name} results uploaded to /results/{results_path}")
     return model_name, results
 
 
 @app.local_entrypoint()
 async def main():
+    print("Starting main")
+    print(dataset_volume.name)
     from pathlib import Path
 
     if REDOWNLOAD_DATA:
-        if USE_DATASET_SUBSET:
-            print_header("🔄 Downloading and uploading LJSpeech data subset...")
-            upload_lj_data_subset.remote()
-        else:
-            print_header("🔄 Downloading and uploading LJSpeech data...")
-            download_and_upload_lj_data.remote()
-
-        print_header("🔄 Processing wav files into appropriate format...")
-        preprocess_wav_files.remote()
+        stage_data.remote()
     else:
         print("Skipping data download")
 
@@ -87,15 +85,13 @@ async def main():
 
         try:
             dataset_volume.listdir("/raw/wavs")
+            dataset_volume.listdir("/processed")
         except GRPCError as e:
             if e.status == Status.NOT_FOUND:
                 print_error(
                     "Data not found in volume. Please re-run app.py with REDOWNLOAD_DATA=True. Note that this will take several minutes.",
                 )
                 exit(1)
-
-    print_header("✨ Parsing metadata to retrieve token counts...")
-    upload_token_counts.remote()
 
     print_header("⚡️ Benchmarking all models in parallel...")
     files = [
@@ -111,6 +107,11 @@ async def main():
         )
         for model_name, instance, gpu in model_parameters
     ]
+
+    # tasks = [
+    #     run_model_sync.remote.aio(model_name, instance, gpu, files)
+    #     for model_name, instance, gpu in model_parameters
+    # ]
     await asyncio.gather(*tasks)
 
     print_header("🔮 Postprocessing results...")
