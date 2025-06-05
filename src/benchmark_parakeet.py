@@ -1,57 +1,44 @@
 import modal
+import json
+import time
+from typing import Any
+
+from pathlib import Path
+
 from src.common import app, dataset_volume, model_cache, GPUS
 from src.utils import write_results
 
-parakeet_cpu_image = (
-    modal.Image.debian_slim(python_version="3.12")
-    .pip_install("uv")
-    .env(
-        {
-            "HF_HUB_ENABLE_HF_TRANSFER": "1",
-            "HF_HOME": "/cache",
-            "DEBIAN_FRONTEND": "noninteractive",
-            "CXX": "g++",
-            "CC": "g++",
-        }
-    )
-    .apt_install("ffmpeg")
-    .run_commands(
-        "uv pip install --system evaluate==0.4.3 librosa==0.11.0 hf_transfer huggingface_hub[hf-xet] nemo_toolkit[asr] cuda-python>=12.3",
-        "uv pip install --system 'numpy<2.0'",  # downgrade numpy; incompatible current version
-    )
-    .entrypoint([])
-    .add_local_python_source("src.common", "src.utils")
+# NVIDIA GPU image is incompatible with CPU-only workloads.
+parakeet_cpu_image = modal.Image.debian_slim(python_version="3.12")
+parakeet_gpu_image = modal.Image.from_registry(
+    "nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04", add_python="3.12"
 )
 
-parakeet_image = (
-    modal.Image.from_registry(
-        "nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04", add_python="3.12"
+for image in [parakeet_cpu_image, parakeet_gpu_image]:
+    image = (
+        image.env(
+            {
+                "HF_HUB_ENABLE_HF_TRANSFER": "1",
+                "HF_HOME": "/cache",
+                "DEBIAN_FRONTEND": "noninteractive",
+                # "CXX": "g++",
+                # "CC": "g++",
+            }
+        )
+        .apt_install("ffmpeg")
+        .pip_install(
+            "evaluate==0.4.3",
+            "librosa==0.11.0",
+            "hf_transfer==0.1.9",
+            "huggingface_hub[hf-xet]==0.32.4",
+            "nemo_toolkit[asr]==2.3.1",
+            "cuda-python>=12.3",
+        )
+        .pip_install("numpy<2.0")  # Downgrade numpy; incompatible current version
+        .entrypoint([])
+        .add_local_python_source("src.common", "src.utils")
     )
-    .pip_install("uv")
-    .env(
-        {
-            "HF_HUB_ENABLE_HF_TRANSFER": "1",
-            "HF_HOME": "/cache",
-            "DEBIAN_FRONTEND": "noninteractive",
-            "CXX": "g++",
-            "CC": "g++",
-        }
-    )
-    .apt_install("ffmpeg")
-    .run_commands(
-        "uv pip install --system evaluate==0.4.3 librosa==0.11.0 hf_transfer huggingface_hub[hf-xet] nemo_toolkit[asr] cuda-python>=12.3",
-        "uv pip install --system 'numpy<2.0'",  # downgrade numpy; incompatible current version
-    )
-    .entrypoint([])
-    .add_local_python_source("src.common", "src.utils")
-)
 
-with parakeet_cpu_image.imports():
-    import nemo.collections.asr as nemo_asr
-
-
-with parakeet_image.imports():
-    import nemo.collections.asr as nemo_asr
 
 MODEL_NAME = "nvidia/parakeet-tdt-0.6b-v2"
 
@@ -64,9 +51,14 @@ MODEL_NAME = "nvidia/parakeet-tdt-0.6b-v2"
     image=parakeet_cpu_image,
 )
 class ParakeetCPU:
+    gpu: str = modal.parameter()
+
     @modal.enter()
     def load(self):
-        import json
+        import librosa
+        import evaluate
+
+        import nemo.collections.asr as nemo_asr
 
         self.model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
         self.gpu = "cpu"
@@ -74,13 +66,7 @@ class ParakeetCPU:
             self.metadata = json.load(f)
 
     @modal.method()
-    def run(self, file: str) -> tuple[str, str, float, float, float]:
-        import time
-        from pathlib import Path
-
-        import librosa
-        import evaluate
-
+    def run(self, file: str) -> dict[str, Any]:
         file_path = Path(file)
         filename = file_path.name
 
@@ -131,25 +117,24 @@ class ParakeetCPU:
         "/data": dataset_volume,
         "/cache": model_cache,
     },
-    image=parakeet_image,
+    image=parakeet_gpu_image,
 )
-class Parakeet:
+class ParakeetGPU:
+    gpu: str = modal.parameter()
+
     @modal.enter()
     def load(self):
-        import json
+        import librosa
+        import evaluate
+
+        import nemo.collections.asr as nemo_asr
 
         self.model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
         with open("/data/metadata.json", "r") as f:
             self.metadata = json.load(f)
 
     @modal.method()
-    def run(self, file: str) -> tuple[str, str, float, float, float]:
-        import time
-        from pathlib import Path
-
-        import librosa
-        import evaluate
-
+    def run(self, file: str) -> dict[str, Any]:
         file_path = Path(file)
         filename = file_path.name
 
@@ -205,12 +190,11 @@ def benchmark_parakeet():
 
     GPU_CLASSES = {
         "cpu": ParakeetCPU,
-        **{gpu: Parakeet.with_options(gpu=gpu) for gpu in GPUS},
+        **{gpu: ParakeetGPU.with_options(gpu=gpu) for gpu in GPUS},
     }
 
     for gpu, model_class in GPU_CLASSES:
-        parakeet = model_class()
-        parakeet.gpu = gpu
+        parakeet = model_class(gpu=gpu)
 
         results = list(parakeet.run.map(files))
 
