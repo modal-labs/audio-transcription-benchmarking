@@ -7,7 +7,7 @@ from src.common import app, dataset_volume
 
 image = (
     modal.Image.debian_slim()
-    .pip_install("pandas")
+    .pip_install("pandas==2.3.0")
     .add_local_python_source("src.common", "src.utils")
 )
 
