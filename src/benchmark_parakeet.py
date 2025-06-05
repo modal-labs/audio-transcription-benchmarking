@@ -89,9 +89,9 @@ class ParakeetCPU:
         duration = len(y) / float(sr)
 
         # Time the transcription
-        start_time = time.time()
+        start_time = time.perf_counter()
         output = self.model.transcribe([file])
-        transcription_time = time.time() - start_time
+        transcription_time = time.perf_counter() - start_time
 
         print("Time taken to transcribe: ", transcription_time)
 
@@ -157,9 +157,9 @@ class ParakeetGPU:
         duration = len(y) / float(sr)
 
         # Time the transcription
-        start_time = time.time()
+        start_time = time.perf_counter()
         output = self.model.transcribe([file])
-        transcription_time = time.time() - start_time
+        transcription_time = time.perf_counter() - start_time
 
         print("Time taken to transcribe: ", transcription_time)
 
