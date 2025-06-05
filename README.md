@@ -31,7 +31,7 @@ Run the following script to upload all data to a new [Modal Volume](https://moda
 and convert all WAV files to equivalent files but in 16khz and mono. This makes files compatible with Parakeet. The data in this volume can be accessed by all apps.
 
 ```shell
-modal run src/download_and_upload_lj_data.py
+modal run -m src.download_and_upload_lj_data
 ```
 
 # Inference
@@ -39,7 +39,7 @@ modal run src/download_and_upload_lj_data.py
 You can benchmark just one model by `modal run`ning either of the files prefixed by `benchmark_`, such as
 
 ```
-modal run src/benchmark_parakeet.py
+modal run -m src.benchmark_parakeet
 ```
 
 Modal will scale to add as many GPUs as necessary in order to process your
@@ -52,3 +52,14 @@ result_parakeet_$TIMESTAMP.csv
 ## Post-Process Results
 
 We'll post-process the results, generate some charts, and upload the results to a volume.
+
+```shell
+modal run -m src.postprocess_results
+```
+
+Generate visualizations in the Jupyter Notebook:
+
+```shell
+pip install -r requirements/requirements-dev.txt
+jupyter notebook
+```

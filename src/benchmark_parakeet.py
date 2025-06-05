@@ -1,5 +1,5 @@
 import modal
-from src.common import app, dataset_volume, model_cache
+from src.common import app, dataset_volume, model_cache, GPUS
 from src.utils import write_results
 
 parakeet_cpu_image = (
@@ -107,6 +107,8 @@ class ParakeetCPU:
         output = self.model.transcribe([file])
         transcription_time = time.time() - start_time
 
+        print("Time taken to transcribe: ", transcription_time)
+
         wer_model = evaluate.load("wer")
         actual = output[0].text
         wer = wer_model.compute(predictions=[actual], references=[expected])
@@ -129,16 +131,14 @@ class ParakeetCPU:
         "/data": dataset_volume,
         "/cache": model_cache,
     },
-    gpu="a10g",
     image=parakeet_image,
 )
-class ParakeetA10G:
+class Parakeet:
     @modal.enter()
     def load(self):
         import json
 
         self.model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
-        self.gpu = "a10g"
         with open("/data/metadata.json", "r") as f:
             self.metadata = json.load(f)
 
@@ -176,143 +176,7 @@ class ParakeetA10G:
         output = self.model.transcribe([file])
         transcription_time = time.time() - start_time
 
-        wer_model = evaluate.load("wer")
-        actual = output[0].text
-        wer = wer_model.compute(predictions=[actual], references=[expected])
-        transcription = output[0].text
-
-        return {
-            "model": MODEL_NAME.replace("/", "-"),
-            "filename": filename,
-            "expected_transcription": expected,
-            "transcription": transcription,
-            "transcription_time": transcription_time,
-            "audio_duration": duration,
-            "wer": wer,
-            "gpu": self.gpu,
-        }
-
-
-@app.cls(
-    volumes={
-        "/data": dataset_volume,
-        "/cache": model_cache,
-    },
-    gpu="h100",
-    image=parakeet_image,
-)
-class ParakeetH100:
-    @modal.enter()
-    def load(self):
-        import json
-
-        self.model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
-        self.gpu = "h100"
-        with open("/data/metadata.json", "r") as f:
-            self.metadata = json.load(f)
-
-    @modal.method()
-    def run(self, file: str) -> tuple[str, str, float, float, float]:
-        import time
-        from pathlib import Path
-
-        import librosa
-        import evaluate
-
-        file_path = Path(file)
-        filename = file_path.name
-
-        file_metadata = self.metadata.get(filename)
-        if file_metadata is None:
-            return {
-                "model": MODEL_NAME.replace("/", "-"),
-                "filename": filename,
-                "expected_transcription": None,
-                "transcription": None,
-                "transcription_time": None,
-                "audio_duration": None,
-                "wer": None,
-                "gpu": self.gpu,
-            }
-
-        expected = file_metadata["transcription"]
-
-        y, sr = librosa.load(file_path, sr=None)
-        duration = len(y) / float(sr)
-
-        # Time the transcription
-        start_time = time.time()
-        output = self.model.transcribe([file])
-        transcription_time = time.time() - start_time
-
-        wer_model = evaluate.load("wer")
-        actual = output[0].text
-        wer = wer_model.compute(predictions=[actual], references=[expected])
-        transcription = output[0].text
-
-        return {
-            "model": MODEL_NAME.replace("/", "-"),
-            "filename": filename,
-            "expected_transcription": expected,
-            "transcription": transcription,
-            "transcription_time": transcription_time,
-            "audio_duration": duration,
-            "wer": wer,
-            "gpu": self.gpu,
-        }
-
-
-@app.cls(
-    volumes={
-        "/data": dataset_volume,
-        "/cache": model_cache,
-    },
-    gpu="t4",
-    image=parakeet_image,
-)
-class ParakeetT4:
-    @modal.enter()
-    def load(self):
-        import json
-
-        self.model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
-        self.gpu = "t4"
-        with open("/data/metadata.json", "r") as f:
-            self.metadata = json.load(f)
-
-    @modal.method()
-    def run(self, file: str) -> tuple[str, str, float, float, float]:
-        import time
-        from pathlib import Path
-
-        import librosa
-        import evaluate
-
-        file_path = Path(file)
-        filename = file_path.name
-
-        file_metadata = self.metadata.get(filename)
-        if file_metadata is None:
-            return {
-                "model": MODEL_NAME.replace("/", "-"),
-                "filename": filename,
-                "expected_transcription": None,
-                "transcription": None,
-                "transcription_time": None,
-                "audio_duration": None,
-                "wer": None,
-                "gpu": self.gpu,
-            }
-
-        expected = file_metadata["transcription"]
-
-        y, sr = librosa.load(file_path, sr=None)
-        duration = len(y) / float(sr)
-
-        # Time the transcription
-        start_time = time.time()
-        output = self.model.transcribe([file])
-        transcription_time = time.time() - start_time
+        print("Time taken to transcribe: ", transcription_time)
 
         wer_model = evaluate.load("wer")
         actual = output[0].text
@@ -338,15 +202,15 @@ def benchmark_parakeet():
     files = [
         str(Path("/data") / Path(f.path)) for f in dataset_volume.listdir("/processed")
     ]
-    GPU_CONFIG = {
+
+    GPU_CLASSES = {
         "cpu": ParakeetCPU,
-        "a10g": ParakeetA10G,
-        "h100": ParakeetH100,
-        "t4": ParakeetT4,
+        **{gpu: Parakeet.with_options(gpu=gpu) for gpu in GPUS},
     }
 
-    for _, model_class in GPU_CONFIG.items():
+    for gpu, model_class in GPU_CLASSES:
         parakeet = model_class()
+        parakeet.gpu = gpu
 
         results = list(parakeet.run.map(files))
 

@@ -14,6 +14,7 @@ app = modal.App(APP_NAME)
 dataset_volume = modal.Volume.from_name(DATASET_VOLUME_NAME, create_if_missing=True)
 model_cache = modal.Volume.from_name(MODEL_CACHE_VOLUME_NAME, create_if_missing=True)
 
+GPUS = ["t4", "a10g", "h100"]
 
 # Constants
 COLOR = {
