@@ -15,8 +15,14 @@ download_image = base_image.pip_install("requests==2.32.3")
 data_prep_image = base_image.pip_install("numpy==2.2.6")
 metadata_image = base_image.pip_install("pandas==2.3.0")
 
-for image in [download_image, data_prep_image, metadata_image]:
-    image.add_local_python_source("src.common", "src.utils")
+
+def _build_image(image):
+    return image.add_local_python_source("src.common", "src.utils")
+
+
+download_image = _build_image(download_image)
+data_prep_image = _build_image(data_prep_image)
+metadata_image = _build_image(metadata_image)
 
 
 @app.function(

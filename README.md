@@ -11,7 +11,7 @@ models:
 If you're familiar with all the functions here, feel free to kick them all off with:
 
 ```shell
-modal run src/app.py
+modal run -m src.app
 ```
 
 # Data preparation / Pre-requisites
