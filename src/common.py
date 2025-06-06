@@ -19,6 +19,7 @@ MODEL_CACHE_PATH = Path("/cache")
 MODEL_CACHE_VOLUME_NAME = "audio-diarization-model-cache"
 DATASET_PATH = Path("/data")
 DATASET_VOLUME_NAME = "audio-diarization-benchmarking-data"
+RESULTS_PATH = Path("/data/results")
 
 METADATA_PATH = Path("/data/metadata.json")
 

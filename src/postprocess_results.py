@@ -1,5 +1,5 @@
 import modal
-from src.common import DATASET_VOLUME_NAME, app, dataset_volume
+from src.common import DATASET_VOLUME_NAME, RESULTS_PATH, app, dataset_volume
 
 image = (
     modal.Image.debian_slim()
@@ -25,9 +25,9 @@ def postprocess_results():
     import pandas as pd
 
     # Set up remote paths
-    result_dir = Path("/data/results")
+    result_dir = RESULTS_PATH
     timestamp = int(time.time())
-    output_dir = Path(f"/data/analysis/{timestamp}")
+    output_dir = RESULTS_PATH / f"analysis/{timestamp}"
     output_dir.parents[0].mkdir(
         exist_ok=True
     )  # Create /data/analysis if it doesn't exist

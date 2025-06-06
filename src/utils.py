@@ -2,7 +2,7 @@ import json
 import time
 from pathlib import Path
 import dataclasses
-from src.common import COLOR, BenchmarkResult, app, dataset_volume
+from src.common import COLOR, BenchmarkResult, RESULTS_PATH, app, dataset_volume
 
 
 @app.function(
@@ -13,7 +13,7 @@ from src.common import COLOR, BenchmarkResult, app, dataset_volume
 def write_results(results: list[BenchmarkResult], model_name: str):
     """Write JSONL dataset with all results."""
     timestamp = int(time.time())
-    result_path = Path("/data/results") / Path(f"result_{model_name}_{timestamp}.jsonl")
+    result_path = RESULTS_PATH / Path(f"result_{model_name}_{timestamp}.jsonl")
     with open(result_path, "w+") as f:
         for result in results:
             if result.expected_transcription is None:
