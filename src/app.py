@@ -39,13 +39,10 @@ MODEL_CONFIGS = [
 
 # ## Download and upload data
 
-# For this example, the default behavior downloads just a small subset of the dataset.
-# The full download, extracting and uploading takes about 15 minutes.
+# The full download, extracting and uploading takes about 9 minutes.
 #
 # To skip download (on subsequent runs), set `REDOWNLOAD_DATA` to False.
-# To use the full dataset, set `USE_DATASET_SUBSET` to False.
 REDOWNLOAD_DATA = False
-USE_DATASET_SUBSET = True
 
 
 # ## Run model inference in parallel
@@ -111,11 +108,6 @@ async def main():
         )
         for model_name, instance, gpu in model_parameters
     ]
-
-    # tasks = [
-    #     run_model_sync.remote.aio(model_name, instance, gpu, files)
-    #     for model_name, instance, gpu in model_parameters
-    # ]
     await asyncio.gather(*tasks)
 
     print_header("🔮 Postprocessing results...")
