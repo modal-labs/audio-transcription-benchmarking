@@ -8,21 +8,25 @@ from pathlib import Path
 from src.common import app, dataset_volume, model_cache, GPUS
 from src.utils import write_results
 
+MODEL_NAME = "nvidia/parakeet-tdt-0.6b-v2"
+
+
 # NVIDIA GPU image is incompatible with CPU-only workloads.
 parakeet_cpu_image = modal.Image.debian_slim(python_version="3.12")
 parakeet_gpu_image = modal.Image.from_registry(
     "nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04", add_python="3.12"
 )
 
-for image in [parakeet_cpu_image, parakeet_gpu_image]:
-    image = (
+
+def _build_image(image):
+    return (
         image.env(
             {
                 "HF_HUB_ENABLE_HF_TRANSFER": "1",
                 "HF_HOME": "/cache",
                 "DEBIAN_FRONTEND": "noninteractive",
-                # "CXX": "g++",
-                # "CC": "g++",
+                "CXX": "g++",
+                "CC": "g++",
             }
         )
         .apt_install("ffmpeg")
@@ -31,8 +35,8 @@ for image in [parakeet_cpu_image, parakeet_gpu_image]:
             "librosa==0.11.0",
             "hf_transfer==0.1.9",
             "huggingface_hub[hf-xet]==0.32.4",
-            "nemo_toolkit[asr]==2.3.1",
             "cuda-python>=12.3",
+            "nemo_toolkit[asr]==2.3.1",
         )
         .pip_install("numpy<2.0")  # Downgrade numpy; incompatible current version
         .entrypoint([])
@@ -40,7 +44,8 @@ for image in [parakeet_cpu_image, parakeet_gpu_image]:
     )
 
 
-MODEL_NAME = "nvidia/parakeet-tdt-0.6b-v2"
+parakeet_cpu_image = _build_image(parakeet_cpu_image)
+parakeet_gpu_image = _build_image(parakeet_gpu_image)
 
 
 @app.cls(
@@ -55,9 +60,6 @@ class ParakeetCPU:
 
     @modal.enter()
     def load(self):
-        import librosa
-        import evaluate
-
         import nemo.collections.asr as nemo_asr
 
         self.model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
@@ -67,6 +69,9 @@ class ParakeetCPU:
 
     @modal.method()
     def run(self, file: str) -> dict[str, Any]:
+        import librosa
+        import evaluate
+
         file_path = Path(file)
         filename = file_path.name
 
@@ -124,9 +129,6 @@ class ParakeetGPU:
 
     @modal.enter()
     def load(self):
-        import librosa
-        import evaluate
-
         import nemo.collections.asr as nemo_asr
 
         self.model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
@@ -135,6 +137,9 @@ class ParakeetGPU:
 
     @modal.method()
     def run(self, file: str) -> dict[str, Any]:
+        import librosa
+        import evaluate
+
         file_path = Path(file)
         filename = file_path.name
 
@@ -186,14 +191,14 @@ def benchmark_parakeet():
 
     files = [
         str(Path("/data") / Path(f.path)) for f in dataset_volume.listdir("/processed")
-    ]
+    ][:1]
 
     GPU_CLASSES = {
         "cpu": ParakeetCPU,
         **{gpu: ParakeetGPU.with_options(gpu=gpu) for gpu in GPUS},
     }
 
-    for gpu, model_class in GPU_CLASSES:
+    for gpu, model_class in GPU_CLASSES.items():
         parakeet = model_class(gpu=gpu)
 
         results = list(parakeet.run.map(files))
