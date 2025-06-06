@@ -1,14 +1,21 @@
 import modal
 import json
 import time
-from typing import Any
-
 from pathlib import Path
 
-from src.common import app, dataset_volume, model_cache, GPUS
+from src.common import (
+    app,
+    dataset_volume,
+    model_cache,
+    GPUS,
+    MODEL_CACHE_PATH,
+    PARAKEET_MODEL_DISPLAY_NAME,
+    PARAKEET_MODEL_NAME,
+    METADATA_PATH,
+    BenchmarkResult,
+    DATASET_PATH,
+)
 from src.utils import write_results
-
-MODEL_NAME = "nvidia/parakeet-tdt-0.6b-v2"
 
 
 # NVIDIA GPU image is incompatible with CPU-only workloads.
@@ -51,7 +58,7 @@ parakeet_gpu_image = _build_image(parakeet_gpu_image)
 @app.cls(
     volumes={
         "/data": dataset_volume,
-        "/cache": model_cache,
+        MODEL_CACHE_PATH.as_posix(): model_cache,
     },
     image=parakeet_cpu_image,
 )
@@ -62,59 +69,51 @@ class ParakeetCPU:
     def load(self):
         import nemo.collections.asr as nemo_asr
 
-        self.model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
-        self.gpu = "cpu"
-        with open("/data/metadata.json", "r") as f:
+        self.model = nemo_asr.models.ASRModel.from_pretrained(
+            model_name=PARAKEET_MODEL_NAME
+        )
+        with open(METADATA_PATH, "r") as f:
             self.metadata = json.load(f)
 
     @modal.method()
-    def run(self, file: str) -> dict[str, Any]:
+    def run(self, file: Path) -> BenchmarkResult:
         import librosa
         import evaluate
 
-        file_path = Path(file)
-        filename = file_path.name
+        benchmark_result = BenchmarkResult(
+            model=PARAKEET_MODEL_DISPLAY_NAME,
+            filename=file.name,
+            gpu=self.gpu,
+        )
+
+        filename = file.name
 
         file_metadata = self.metadata.get(filename)
         if file_metadata is None:
-            return {
-                "model": MODEL_NAME.replace("/", "-"),
-                "filename": filename,
-                "expected_transcription": None,
-                "transcription": None,
-                "transcription_time": None,
-                "audio_duration": None,
-                "wer": None,
-                "gpu": self.gpu,
-            }
+            return benchmark_result
 
         expected = file_metadata["transcription"]
 
-        y, sr = librosa.load(file_path, sr=None)
+        y, sr = librosa.load(file, sr=None)
         duration = len(y) / float(sr)
 
-        # Time the transcription
         start_time = time.perf_counter()
-        output = self.model.transcribe([file])
+        output = self.model.transcribe([str(file)])
         transcription_time = time.perf_counter() - start_time
 
-        print("Time taken to transcribe: ", transcription_time)
+        print("Transcription time: ", transcription_time)
 
         wer_model = evaluate.load("wer")
         actual = output[0].text
         wer = wer_model.compute(predictions=[actual], references=[expected])
         transcription = output[0].text
 
-        return {
-            "model": MODEL_NAME.replace("/", "-"),
-            "filename": filename,
-            "expected_transcription": expected,
-            "transcription": transcription,
-            "transcription_time": transcription_time,
-            "audio_duration": duration,
-            "wer": wer,
-            "gpu": self.gpu,
-        }
+        benchmark_result.expected_transcription = expected
+        benchmark_result.transcription = transcription
+        benchmark_result.transcription_time = transcription_time
+        benchmark_result.audio_duration = duration
+        benchmark_result.wer = wer
+        return benchmark_result
 
 
 @app.cls(
@@ -131,78 +130,70 @@ class ParakeetGPU:
     def load(self):
         import nemo.collections.asr as nemo_asr
 
-        self.model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
-        with open("/data/metadata.json", "r") as f:
+        self.model = nemo_asr.models.ASRModel.from_pretrained(
+            model_name=PARAKEET_MODEL_NAME
+        )
+        with open(METADATA_PATH, "r") as f:
             self.metadata = json.load(f)
 
     @modal.method()
-    def run(self, file: str) -> dict[str, Any]:
+    def run(self, file: Path) -> BenchmarkResult:
         import librosa
         import evaluate
 
-        file_path = Path(file)
-        filename = file_path.name
+        benchmark_result = BenchmarkResult(
+            model=PARAKEET_MODEL_DISPLAY_NAME,
+            filename=file.name,
+            gpu=self.gpu,
+        )
+
+        filename = file.name
 
         file_metadata = self.metadata.get(filename)
         if file_metadata is None:
-            return {
-                "model": MODEL_NAME.replace("/", "-"),
-                "filename": filename,
-                "expected_transcription": None,
-                "transcription": None,
-                "transcription_time": None,
-                "audio_duration": None,
-                "wer": None,
-                "gpu": self.gpu,
-            }
+            return benchmark_result
 
         expected = file_metadata["transcription"]
 
-        y, sr = librosa.load(file_path, sr=None)
+        y, sr = librosa.load(file, sr=None)
         duration = len(y) / float(sr)
 
-        # Time the transcription
         start_time = time.perf_counter()
-        output = self.model.transcribe([file])
+        output = self.model.transcribe([str(file)])
         transcription_time = time.perf_counter() - start_time
 
-        print("Time taken to transcribe: ", transcription_time)
+        print("Transcription time: ", transcription_time)
 
         wer_model = evaluate.load("wer")
         actual = output[0].text
         wer = wer_model.compute(predictions=[actual], references=[expected])
         transcription = output[0].text
 
-        return {
-            "model": MODEL_NAME.replace("/", "-"),
-            "filename": filename,
-            "expected_transcription": expected,
-            "transcription": transcription,
-            "transcription_time": transcription_time,
-            "audio_duration": duration,
-            "wer": wer,
-            "gpu": self.gpu,
-        }
+        benchmark_result.expected_transcription = expected
+        benchmark_result.transcription = transcription
+        benchmark_result.transcription_time = transcription_time
+        benchmark_result.audio_duration = duration
+        benchmark_result.wer = wer
+        return benchmark_result
 
 
-@app.local_entrypoint()
+@app.function(
+    volumes={
+        MODEL_CACHE_PATH.as_posix(): dataset_volume,
+    },
+    image=parakeet_gpu_image,
+)
 def benchmark_parakeet():
-    from pathlib import Path
-
     files = [
-        str(Path("/data") / Path(f.path)) for f in dataset_volume.listdir("/processed")
+        (DATASET_PATH / Path(f.path)) for f in dataset_volume.listdir("/processed")
     ][:1]
 
     GPU_CLASSES = {
         "cpu": ParakeetCPU,
-        **{gpu: ParakeetGPU.with_options(gpu=gpu) for gpu in GPUS},
+        # **{gpu: ParakeetGPU.with_options(gpu=gpu) for gpu in GPUS},
     }
 
     for gpu, model_class in GPU_CLASSES.items():
         parakeet = model_class(gpu=gpu)
-
         results = list(parakeet.run.map(files))
-
-        results_path = write_results(results, MODEL_NAME.replace("/", "-"))
-        with dataset_volume.batch_upload() as batch:
-            batch.put_file(results_path, f"/results/{results_path}")
+        write_results.remote(results, PARAKEET_MODEL_DISPLAY_NAME)

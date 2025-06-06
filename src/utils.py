@@ -1,22 +1,26 @@
 import json
 import time
 from pathlib import Path
-from typing import Any
+import dataclasses
+from src.common import COLOR, BenchmarkResult, app, dataset_volume
 
-from src.common import COLOR
 
-
-def write_results(results: list[dict[str, Any]], model_name: str):
+@app.function(
+    volumes={
+        "/data": dataset_volume,
+    },
+)
+def write_results(results: list[BenchmarkResult], model_name: str):
     """Write JSONL dataset with all results."""
     timestamp = int(time.time())
-    result_path = Path(f"result_{model_name}_{timestamp}.jsonl")
-    with result_path.open("w") as f:
+    result_path = Path("/data/results") / Path(f"result_{model_name}_{timestamp}.jsonl")
+    with open(result_path, "w+") as f:
         for result in results:
-            if result and not result.get("expected_transcription"):
+            if result.expected_transcription is None:
                 continue
-            f.write(json.dumps(result) + "\n")
-
-    return result_path
+            dct = dataclasses.asdict(result)
+            f.write(json.dumps(dct) + "\n")
+    print(f"Wrote results to {result_path}")
 
 
 def print_header(text):
