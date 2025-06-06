@@ -17,12 +17,13 @@ from src.benchmark_parakeet import ParakeetCPU, ParakeetGPU
 from src.benchmark_whisper import Whisper
 from src.benchmark_whisperx import WhisperX
 from src.common import (
-    PARAKEET_MODEL_NAME,
-    WHISPER_MODEL_NAME,
-    WHISPERX_MODEL_NAME,
+    PARAKEET_MODEL_DISPLAY_NAME,
+    WHISPER_MODEL_DISPLAY_NAME,
+    WHISPERX_MODEL_DISPLAY_NAME,
     app,
     dataset_volume,
     GPUS,
+    DATASET_PATH,
 )
 from src.stage_data import (
     stage_data,
@@ -31,9 +32,9 @@ from src.postprocess_results import postprocess_results
 from src.utils import print_error, print_header, write_results
 
 MODEL_CONFIGS = [
-    (PARAKEET_MODEL_NAME.replace("/", "-"), ParakeetGPU),
-    (WHISPER_MODEL_NAME.replace("/", "-"), Whisper),
-    (f"whisperx-{WHISPERX_MODEL_NAME}", WhisperX),
+    (PARAKEET_MODEL_DISPLAY_NAME, ParakeetGPU),
+    (WHISPER_MODEL_DISPLAY_NAME, Whisper),
+    (WHISPERX_MODEL_DISPLAY_NAME, WhisperX),
 ]
 
 # ## Download and upload data
@@ -69,38 +70,41 @@ def run_model_sync(model_name, instance, gpu, files):
     return model_name, results
 
 
+def check_data_exists():
+    from grpclib import GRPCError
+    from grpclib.const import Status
+
+    try:
+        dataset_volume.listdir("/raw/wavs")
+        dataset_volume.listdir("/processed")
+    except GRPCError as e:
+        if e.status == Status.NOT_FOUND:
+            print_error(
+                "Data not found in volume. Please re-run app.py with REDOWNLOAD_DATA=True. Note that this will take several minutes.",
+            )
+            exit(1)
+
+
 @app.local_entrypoint()
 async def main():
-    print("Starting main")
-    print(dataset_volume.name)
     from pathlib import Path
 
     if REDOWNLOAD_DATA:
         stage_data.remote()
     else:
         print("Skipping data download")
-
-        from grpclib import GRPCError
-        from grpclib.const import Status
-
-        try:
-            dataset_volume.listdir("/raw/wavs")
-            dataset_volume.listdir("/processed")
-        except GRPCError as e:
-            if e.status == Status.NOT_FOUND:
-                print_error(
-                    "Data not found in volume. Please re-run app.py with REDOWNLOAD_DATA=True. Note that this will take several minutes.",
-                )
-                exit(1)
+        check_data_exists()
 
     print_header("⚡️ Benchmarking all models in parallel...")
     files = [
-        str(Path("/data") / Path(f.path)) for f in dataset_volume.listdir("/processed")
-    ]
+        (DATASET_PATH / Path(f.path)) for f in dataset_volume.listdir("/processed")
+    ][:1]
 
     print(f"Found {len(files)} files to benchmark")
 
-    model_parameters = [(*mc, gc) for mc, gc in product(MODEL_CONFIGS, GPUS)]
+    model_parameters = [(*mc, gc) for mc, gc in product(MODEL_CONFIGS, GPUS)] + [
+        (PARAKEET_MODEL_DISPLAY_NAME, ParakeetCPU, "cpu")
+    ]
     tasks = [
         asyncio.get_event_loop().run_in_executor(
             None, run_model_sync, model_name, instance, gpu, files
