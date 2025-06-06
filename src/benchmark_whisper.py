@@ -8,15 +8,18 @@ whisper_image = (
     modal.Image.from_registry(
         "nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04", add_python="3.12"
     )
-    .pip_install("uv")
+    .pip_install(
+        "evaluate==0.4.3",
+        "jiwer==3.1.0",
+        "librosa==0.11.0",
+        "hf_transfer==0.1.9",
+        "vllm[audio]==0.9.0.1",
+    )
     .env(
         {
             "HF_HUB_ENABLE_HF_TRANSFER": "1",
             "HF_HOME": "/cache",
         }
-    )
-    .run_commands(
-        "uv pip install --system evaluate==0.4.3 jiwer==3.1.0 librosa==0.11.0 hf_transfer vllm[audio]"
     )
     .entrypoint([])
     .add_local_python_source("src.common", "src.utils")
@@ -26,6 +29,7 @@ whisper_image = (
 with whisper_image.imports():
     import librosa
     from vllm import LLM, SamplingParams
+    import evaluate
 
 
 @app.cls(
@@ -36,6 +40,8 @@ with whisper_image.imports():
     image=whisper_image,
 )
 class Whisper:
+    gpu: str = modal.parameter()
+
     @modal.enter()
     def load(self):
         import json
@@ -53,27 +59,24 @@ class Whisper:
     def run(self, file: str):
         import time
         from pathlib import Path
-        import evaluate
 
         file_path = Path(file)
         filename = file_path.name
 
-        # file_metadata = self.metadata.get(filename)
-        # if file_metadata is None:
-        #     return {
-        #         "model": MODEL_NAME.replace("/", "-"),
-        #         "filename": filename,
-        #         "expected_transcription": None,
-        #         "transcription": None,
-        #         "transcription_time": None,
-        #         "audio_duration": None,
-        #         "wer": None,
-        #         "gpu": self.gpu,
-        #     }
+        file_metadata = self.metadata.get(filename)
+        if file_metadata is None:
+            return {
+                "model": MODEL_NAME.replace("/", "-"),
+                "filename": filename,
+                "expected_transcription": None,
+                "transcription": None,
+                "transcription_time": None,
+                "audio_duration": None,
+                "wer": None,
+                "gpu": self.gpu,
+            }
 
-        # expected = file_metadata["transcription"]
-
-        expected = "a"
+        expected = file_metadata["transcription"]
 
         y, sr = librosa.load(file_path, sr=None)
         duration = len(y) / float(sr)
@@ -128,11 +131,10 @@ def benchmark_whisper():
 
     files = [
         str(Path("/data") / Path(f.path)) for f in dataset_volume.listdir("/processed")
-    ]
+    ][:1]
 
     for gpu in GPUS:
-        whisper = Whisper.with_options(gpu=gpu)()
-        whisper.gpu = gpu
+        whisper = Whisper.with_options(gpu=gpu)(gpu=gpu)
 
         results = list(whisper.run.map(files))
         results_path = write_results(results, MODEL_NAME.replace("/", "-"))
