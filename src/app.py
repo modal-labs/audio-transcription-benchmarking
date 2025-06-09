@@ -51,11 +51,6 @@ REDOWNLOAD_DATA = False
 # up multiple containers in parallel.
 
 
-@app.function(
-    volumes={
-        "/data": dataset_volume,
-    },
-)
 def run_model_sync(model_name, instance, gpu, files):
     import json
 
