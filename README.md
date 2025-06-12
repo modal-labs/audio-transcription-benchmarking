@@ -8,14 +8,16 @@ models:
 - [**whisper-large-v3-turbo**](https://huggingface.co/openai/whisper-large-v3-turbo): using vLLM
 - [**whisperx**](https://github.com/m-bain/whisperX): using Python
 
-# Data preparation / Pre-requisites
+## Benchmarks
 
-## Create secret
+- Word Error Rate (WER)
+- Throughput (RTFx)
 
-First, create a [Modal Secret](https://modal.com/docs/guide/secrets#secrets) with Huggingface token.
-We'll use this secret later to download models from the Huggingface Hub. The Secret needs to be
-named `huggingface-token`. This is required for our WhisperX model. You can skip this step if you only
-want to benchmark Whisper or Parakeet.
+## Create secret (WhisperX only)
+
+First, create a [Hugging Face access token](https://huggingface.co/settings/tokens) and store it in a [Modal Secret](https://modal.com/docs/guide/secrets#secrets) called `huggingface-token`.
+We'll use this secret later to download models from the Huggingface Hub. This is only required for our WhisperX model - you can skip this step if you only
+want to run Whisper or Parakeet.
 
 ## Upload and prepare dataset
 
