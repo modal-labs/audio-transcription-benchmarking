@@ -13,13 +13,20 @@ models:
 - Word Error Rate (WER)
 - Throughput (RTFx)
 
-## Create secret (WhisperX only)
+## Local Development
+
+### Modal
+
+- Install Modal in your current Python virtual environment (`pip install modal`)
+- Set up your Modal account: `python3 -m modal setup`
+
+### Create secret (WhisperX only)
 
 First, create a [Hugging Face access token](https://huggingface.co/settings/tokens) and store it in a [Modal Secret](https://modal.com/docs/guide/secrets#secrets) called `huggingface-token`.
 We'll use this secret later to download models from the Huggingface Hub. This is only required for our WhisperX model - you can skip this step if you only
 want to run Whisper or Parakeet.
 
-## Upload and prepare dataset
+### Prepare dataset
 
 We'll use the publicly available [LJ Speech Dataset](https://keithito.com/LJ-Speech-Dataset/) to benchmark our models.
 
@@ -30,7 +37,7 @@ and convert all WAV files to equivalent files but in 16khz and mono. This makes 
 modal run -m src.stage_data
 ```
 
-# Inference
+### Inference
 
 You can benchmark a model by `modal run`ning either of the files prefixed by `benchmark_`, such as
 
