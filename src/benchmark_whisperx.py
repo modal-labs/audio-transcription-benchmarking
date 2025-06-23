@@ -118,8 +118,8 @@ class WhisperX:
 def benchmark_whisperx():
     files = [
         (DATASET_PATH / Path(f.path)) for f in dataset_volume.listdir("/processed")
-    ][:1]
-    for gpu in GPUS[:1]:
+    ]
+    for gpu in GPUS:
         whisperx = WhisperX.with_options(gpu=gpu)(gpu=gpu)
         results = list(whisperx.run.map(files))
         write_results.remote(results, WHISPERX_MODEL_DISPLAY_NAME)

@@ -138,7 +138,7 @@ def benchmark_whisper():
 
     files = [
         (DATASET_PATH / Path(f.path)) for f in dataset_volume.listdir("/processed")
-    ][:1]
+    ]
 
     for gpu in GPUS:
         whisper = Whisper.with_options(gpu=gpu)(gpu=gpu)

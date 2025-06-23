@@ -186,11 +186,11 @@ class ParakeetGPU:
 def benchmark_parakeet():
     files = [
         (DATASET_PATH / Path(f.path)) for f in dataset_volume.listdir("/processed")
-    ][:1]
+    ]
 
     GPU_CLASSES = {
         "cpu": ParakeetCPU,
-        # **{gpu: ParakeetGPU.with_options(gpu=gpu) for gpu in GPUS},
+        **{gpu: ParakeetGPU.with_options(gpu=gpu) for gpu in GPUS},
     }
 
     for gpu, model_class in GPU_CLASSES.items():
