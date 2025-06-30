@@ -185,6 +185,6 @@ def parse_metadata():
     timeout=1200,  # 20 minutes
 )
 def stage_data():
-    download_and_upload_lj_data.remote()
+    download_lj_data.remote()
     preprocess_wav_files.remote()
     parse_metadata.remote()

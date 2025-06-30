@@ -9,6 +9,7 @@ from src.common import COLOR, BenchmarkResult, RESULTS_PATH, app, dataset_volume
     volumes={
         "/data": dataset_volume,
     },
+    timeout=60 * 60, # 1 hour
 )
 def write_results(results: list[BenchmarkResult], model_name: str):
     """Write JSONL dataset with all results."""
